@@ -1,0 +1,510 @@
+# ============================================================
+# ARIS · Mapa dos Ramos do Direito Brasileiro
+# ------------------------------------------------------------
+# CAMADA 1 ("o Mapa"): a bússola de navegação do agente.
+# NÃO contém a lei. Diz ao agente, para cada ramo:
+#   - que diplomas formam a "lei seca" (Camada 2 = mineração ao vivo)
+#   - onde a lei vive (fontes oficiais)
+#   - onde está a jurisprudência (tribunais)
+#   - quais órgãos reguladores importam
+#   - quais SINAIS identificam o ramo (roteamento/classificação)
+#
+# Princípio: o agente NÃO armazena a lei. Ele usa este mapa como
+# ponto de partida e MINERA o texto vigente nas fontes ao vivo.
+# ============================================================
+
+meta:
+  versao: "0.1"
+  proposito: >
+    Taxonomia navegável dos ramos do Direito brasileiro. O agente classifica a
+    pergunta em um ou mais ramos pelos 'sinais' e, a partir daí, minera as
+    fontes — sem armazenar a lei.
+  aviso_doutrinario: >
+    A lista de ramos é doutrinariamente ABERTA: há um núcleo estável (~20 ramos)
+    e uma cauda longa de ramos especializados/emergentes. Este mapa privilegia
+    uma ÁRVORE (público/privado/difuso → ramo → sub-ramo) em vez de lista plana,
+    para que o LLM classifique do geral para o específico e a cauda longa cresça
+    sem inchar o prompt.
+  modelo_confianca:
+    lei_seca: "ALTA — fontes oficiais consolidadas (Planalto, LexML)."
+    jurisprudencia: "ALTA nos tribunais oficiais (STF, STJ, TST...); cautela com agregadores."
+    doutrina: "BAIXA/heterogênea — sem fonte oficial única. Exige atribuição e cautela."
+
+# ------------------------------------------------------------
+# Fontes primárias — onde a lei realmente vive. Usadas por TODOS os ramos.
+# ------------------------------------------------------------
+fontes_primarias:
+  legislacao_oficial:
+    planalto:
+      url: https://www.planalto.gov.br/ccivil_03/
+      nota: Legislação federal consolidada (Casa Civil). Fonte canônica da lei seca.
+    lexml:
+      url: https://www.lexml.gov.br/
+      nota: >
+        Rede federada de legislação + jurisprudência com identificador URN.
+        Melhor porta de entrada para resolver "Lei X/ano" → texto oficial.
+    senado:
+      url: https://www.senado.leg.br/
+    camara:
+      url: https://www.camara.leg.br/
+    dou:
+      url: https://www.in.gov.br/
+      nota: Diário Oficial da União (Imprensa Nacional) — publicação oficial.
+  jurisprudencia_oficial:
+    stf:
+      url: https://jurisprudencia.stf.jus.br/
+      nota: Matéria constitucional; súmulas vinculantes; repercussão geral.
+    stj:
+      url: https://scon.stj.jus.br/
+      nota: Uniformização da lei federal infraconstitucional; recursos repetitivos.
+    tst:
+      url: https://www.tst.jus.br/
+    tse:
+      url: https://www.tse.jus.br/
+    cnj:
+      url: https://www.cnj.jus.br/
+      nota: Súmulas, DataJud, atos normativos do Judiciário.
+  agregadores:
+    jusbrasil:
+      url: https://www.jusbrasil.com.br/
+      nota: >
+        SECUNDÁRIO/comercial. Conveniente para busca ampla, mas NÃO é fonte
+        oficial — sempre confirmar a lei seca no Planalto/LexML e o acórdão
+        no tribunal de origem.
+
+estrategia_mineracao: >
+  Fluxo por turno (stateless): (1) classificar a pergunta em ramo(s) pelos
+  'sinais'; (2) resolver os 'diplomas' do ramo via LexML/Planalto (lei seca);
+  (3) se a pergunta exige interpretação, minerar 'tribunais' (jurisprudência) e,
+  com cautela, doutrina; (4) sintetizar citando lei (número + artigo) + link
+  oficial. Nunca fabricar citação; quando incerto, declarar a incerteza.
+
+# ------------------------------------------------------------
+# Divisão clássica (summa divisio) + bloco moderno
+# ------------------------------------------------------------
+divisoes:
+  publico:
+    nota: Relações em que o Estado atua com império (ius imperii) ou o interesse é público.
+  privado:
+    nota: Relações entre particulares em igualdade jurídica.
+  difuso_social:
+    nota: >
+      Direitos transindividuais / de ordem pública social (trabalho, consumidor,
+      ambiente, previdência) — divisão moderna, normas em geral cogentes.
+
+# ============================================================
+# RAMOS
+# ============================================================
+ramos:
+
+  # ---------- DIREITO PÚBLICO ----------
+  - id: constitucional
+    nome: Direito Constitucional
+    divisao: publico
+    escopo: Norma fundamental, direitos fundamentais, organização do Estado, controle de constitucionalidade.
+    diplomas:
+      - "Constituição Federal de 1988 (CF/88) + ADCT"
+      - "Emendas Constitucionais"
+      - "Súmulas Vinculantes do STF"
+    fontes: [planalto, lexml, stf]
+    tribunais: [stf]
+    sinais: [constituição, direito fundamental, ADI, ADC, ADPF, controle de constitucionalidade, cláusula pétrea, competência federativa, mandado de segurança, habeas data, repercussão geral]
+
+  - id: administrativo
+    nome: Direito Administrativo
+    divisao: publico
+    escopo: Administração pública, atos e contratos administrativos, servidores, licitação, controle.
+    diplomas:
+      - "Lei 14.133/2021 (Nova Lei de Licitações e Contratos)"
+      - "Lei 9.784/1999 (processo administrativo federal)"
+      - "Lei 8.112/1990 (servidores federais)"
+      - "Lei 8.429/1992 (improbidade administrativa)"
+      - "Lei 12.527/2011 (LAI — acesso à informação)"
+    notas: "Não há código único; legislação esparsa."
+    fontes: [planalto, lexml]
+    tribunais: [stj, stf]
+    orgaos:
+      tcu: { url: https://portal.tcu.gov.br/, nota: Controle externo (jurisprudência de contas). }
+    sinais: [licitação, contrato administrativo, servidor público, ato administrativo, improbidade, concessão, permissão, poder de polícia, PAD, desapropriação]
+
+  - id: tributario
+    nome: Direito Tributário
+    divisao: publico
+    escopo: Tributos, obrigação tributária, crédito, lançamento, contencioso fiscal.
+    diplomas:
+      - "CTN — Lei 5.172/1966"
+      - "CF/88, Título VI (Sistema Tributário Nacional)"
+      - "EC 132/2023 (Reforma Tributária — IBS/CBS)"
+      - "LC 87/1996 (Kandir — ICMS)"
+      - "LC 116/2003 (ISS)"
+    fontes: [planalto, lexml]
+    tribunais: [stf, stj]
+    orgaos:
+      receita_federal: { url: https://www.gov.br/receitafederal/ }
+      carf: { url: https://www.gov.br/carf/, nota: Contencioso administrativo tributário federal. }
+    sinais: [tributo, imposto, ICMS, ISS, IPI, IRPJ, contribuição, fato gerador, lançamento, execução fiscal, crédito tributário, imunidade, isenção]
+
+  - id: financeiro
+    nome: Direito Financeiro
+    divisao: publico
+    escopo: Receita e despesa pública, orçamento, responsabilidade fiscal.
+    diplomas:
+      - "Lei 4.320/1964 (normas gerais de direito financeiro)"
+      - "LC 101/2000 (Lei de Responsabilidade Fiscal)"
+      - "CF/88, Título VI"
+    fontes: [planalto, lexml]
+    tribunais: [stf]
+    orgaos:
+      tcu: { url: https://portal.tcu.gov.br/ }
+    sinais: [orçamento público, LOA, LDO, despesa pública, LRF, precatório, restos a pagar]
+
+  - id: penal
+    nome: Direito Penal
+    divisao: publico
+    escopo: Crimes, penas, teoria do delito, leis penais especiais.
+    diplomas:
+      - "Código Penal — Decreto-Lei 2.848/1940"
+      - "Lei de Contravenções Penais — Decreto-Lei 3.688/1941"
+      - "Lei de Drogas — 11.343/2006"
+      - "Lei Maria da Penha — 11.340/2006"
+      - "Crimes Hediondos — 8.072/1990"
+      - "Estatuto do Desarmamento — 10.826/2003"
+      - "Lei de Lavagem — 9.613/1998"
+    fontes: [planalto, lexml]
+    tribunais: [stf, stj]
+    sinais: [crime, dolo, culpa, pena, tipicidade, dosimetria, prescrição penal, legítima defesa, autoria, concurso de crimes]
+
+  - id: processual_penal
+    nome: Direito Processual Penal
+    divisao: publico
+    escopo: Persecução penal, provas, prisões, recursos criminais.
+    diplomas:
+      - "CPP — Decreto-Lei 3.689/1941"
+      - "Lei 9.099/1995 (Juizados Especiais Criminais)"
+      - "Pacote Anticrime — Lei 13.964/2019"
+    fontes: [planalto, lexml]
+    tribunais: [stf, stj]
+    sinais: [inquérito, prisão preventiva, habeas corpus, nulidade, cadeia de custódia, juiz de garantias, denúncia, acordo de não persecução penal]
+
+  - id: processual_civil
+    nome: Direito Processual Civil
+    divisao: publico
+    escopo: Processo, recursos, tutelas, execução, sistema de precedentes.
+    diplomas:
+      - "CPC — Lei 13.105/2015"
+      - "Lei 9.099/1995 (Juizados Especiais Cíveis)"
+    fontes: [planalto, lexml]
+    tribunais: [stj, stf]
+    sinais: [petição inicial, tutela provisória, recurso, agravo, cumprimento de sentença, execução, IRDR, coisa julgada, precedente vinculante]
+
+  - id: eleitoral
+    nome: Direito Eleitoral
+    divisao: publico
+    escopo: Elegibilidade, eleições, partidos, propaganda, prestação de contas.
+    diplomas:
+      - "Código Eleitoral — Lei 4.737/1965"
+      - "Lei das Eleições — 9.504/1997"
+      - "LC 64/1990 + LC 135/2010 (Inelegibilidades / Ficha Limpa)"
+      - "Lei dos Partidos — 9.096/1995"
+      - "Resoluções do TSE"
+    fontes: [planalto, lexml, tse]
+    tribunais: [tse]
+    sinais: [candidatura, inelegibilidade, propaganda eleitoral, prestação de contas, mandato, registro de candidatura, abuso de poder]
+
+  - id: militar
+    nome: Direito Militar
+    divisao: publico
+    escopo: Crimes militares e processo penal militar.
+    diplomas:
+      - "Código Penal Militar — Decreto-Lei 1.001/1969"
+      - "CPP Militar — Decreto-Lei 1.002/1969"
+    fontes: [planalto, lexml]
+    tribunais:
+      stm: { url: https://www.stm.jus.br/ }
+    sinais: [crime militar, deserção, justiça militar, transgressão disciplinar]
+
+  - id: internacional_publico
+    nome: Direito Internacional Público
+    divisao: publico
+    escopo: Tratados, soberania, jurisdição internacional, direitos humanos.
+    diplomas:
+      - "Tratados e convenções internalizados (decretos de promulgação)"
+      - "Decreto 7.030/2009 (Convenção de Viena sobre Direito dos Tratados)"
+    fontes: [planalto, lexml]
+    tribunais: [stf]
+    sinais: [tratado, convenção, soberania, extradição, direitos humanos, jurisdição internacional]
+
+  # ---------- DIREITO PRIVADO ----------
+  - id: civil
+    nome: Direito Civil
+    divisao: privado
+    escopo: Pessoas, bens, obrigações, contratos, responsabilidade, família, sucessões.
+    diplomas:
+      - "Código Civil — Lei 10.406/2002"
+      - "LINDB — Decreto-Lei 4.657/1942"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    sinais: [contrato, obrigação, propriedade, posse, casamento, divórcio, herança, dano moral, responsabilidade civil, prescrição, usufruto]
+    sub_ramos:
+      - { id: civil_parte_geral, nome: Parte Geral, sinais: [pessoa natural, pessoa jurídica, capacidade, prescrição, decadência, negócio jurídico] }
+      - { id: civil_obrigacoes, nome: Obrigações, sinais: [obrigação, mora, inadimplemento, pagamento, solidariedade] }
+      - { id: civil_contratos, nome: Contratos, sinais: [contrato, compra e venda, locação, mandato, distrato, onerosidade excessiva] }
+      - { id: civil_responsabilidade, nome: Responsabilidade Civil, sinais: [dano, nexo causal, culpa, dano moral, responsabilidade objetiva, indenização] }
+      - { id: civil_reais, nome: Direitos Reais / Coisas, sinais: [propriedade, posse, usucapião, hipoteca, servidão, condomínio] }
+      - { id: civil_familia, nome: Família, sinais: [casamento, união estável, divórcio, guarda, alimentos, regime de bens] }
+      - { id: civil_sucessoes, nome: Sucessões, sinais: [herança, testamento, inventário, legítima, herdeiro] }
+
+  - id: empresarial
+    nome: Direito Empresarial / Comercial
+    divisao: privado
+    escopo: Empresa, sociedades, títulos de crédito, recuperação e falência.
+    diplomas:
+      - "Código Civil — Lei 10.406/2002, Livro II (Direito de Empresa)"
+      - "Lei 6.404/1976 (Sociedades por Ações)"
+      - "Lei 11.101/2005 (Recuperação Judicial e Falência)"
+      - "Lei 8.934/1994 (registro público de empresas)"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    orgaos:
+      cvm: { url: https://www.gov.br/cvm/, nota: Mercado de valores mobiliários. }
+    sinais: [sociedade, S.A., sócio, falência, recuperação judicial, título de crédito, duplicata, empresa, capital social]
+
+  - id: consumidor
+    nome: Direito do Consumidor
+    divisao: difuso_social
+    escopo: Relação de consumo, proteção contratual, responsabilidade do fornecedor.
+    diplomas:
+      - "CDC — Lei 8.078/1990"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    orgaos:
+      senacon: { url: https://www.gov.br/mj/pt-br/assuntos/seus-direitos/consumidor }
+    sinais: [relação de consumo, vício do produto, fato do produto, propaganda enganosa, cláusula abusiva, inversão do ônus, fornecedor, hipossuficiente]
+
+  - id: internacional_privado
+    nome: Direito Internacional Privado
+    divisao: privado
+    escopo: Conflito de leis no espaço, lei aplicável, sentença estrangeira.
+    diplomas:
+      - "LINDB — Decreto-Lei 4.657/1942 (arts. 7º a 19)"
+      - "Tratados aplicáveis"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    sinais: [conflito de leis, lei aplicável, homologação de sentença estrangeira, domicílio, elemento de conexão]
+
+  # ---------- DIREITO SOCIAL / DIFUSO ----------
+  - id: trabalho
+    nome: Direito do Trabalho
+    divisao: difuso_social
+    escopo: Relação de emprego, direitos trabalhistas, negociação coletiva.
+    diplomas:
+      - "CLT — Decreto-Lei 5.452/1943"
+      - "Reforma Trabalhista — Lei 13.467/2017"
+      - "CF/88, art. 7º"
+    fontes: [planalto, lexml, tst]
+    tribunais: [tst]
+    sinais: [vínculo empregatício, verbas rescisórias, jornada, hora extra, FGTS, justa causa, terceirização, adicional, estabilidade]
+
+  - id: processual_trabalho
+    nome: Direito Processual do Trabalho
+    divisao: difuso_social
+    escopo: Processo trabalhista, execução, recursos.
+    diplomas:
+      - "CLT, Título X"
+      - "CPC (aplicação subsidiária)"
+      - "Súmulas e OJs do TST"
+    fontes: [planalto, lexml, tst]
+    tribunais: [tst]
+    sinais: [reclamação trabalhista, audiência una, recurso ordinário, execução trabalhista, dissídio]
+
+  - id: previdenciario
+    nome: Direito Previdenciário
+    divisao: difuso_social
+    escopo: Benefícios e custeio da previdência (RGPS/RPPS).
+    diplomas:
+      - "Lei 8.213/1991 (benefícios — PBPS)"
+      - "Lei 8.212/1991 (custeio)"
+      - "Decreto 3.048/1999 (RPS)"
+      - "EC 103/2019 (Reforma da Previdência)"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    orgaos:
+      inss: { url: https://www.gov.br/inss/, nota: Esfera administrativa. }
+    sinais: [aposentadoria, benefício, RGPS, RPPS, contribuição previdenciária, auxílio-doença, BPC, perícia, tempo de contribuição]
+
+  - id: ambiental
+    nome: Direito Ambiental
+    divisao: difuso_social
+    escopo: Proteção ambiental, licenciamento, responsabilidade por dano ambiental.
+    diplomas:
+      - "Lei 6.938/1981 (Política Nacional do Meio Ambiente)"
+      - "Lei 9.605/1998 (Crimes Ambientais)"
+      - "Código Florestal — Lei 12.651/2012"
+      - "Lei 9.985/2000 (SNUC)"
+      - "Lei 12.305/2010 (Resíduos Sólidos)"
+    fontes: [planalto, lexml]
+    tribunais: [stj, stf]
+    orgaos:
+      ibama: { url: https://www.gov.br/ibama/ }
+      conama: { url: https://www.gov.br/mma/pt-br/composicao/conama }
+    sinais: [licenciamento ambiental, EIA/RIMA, área de preservação, APP, dano ambiental, responsabilidade objetiva ambiental, unidade de conservação]
+
+  - id: crianca_adolescente
+    nome: Direito da Criança e do Adolescente
+    divisao: difuso_social
+    escopo: Proteção integral, ato infracional, adoção.
+    diplomas:
+      - "ECA — Lei 8.069/1990"
+      - "CF/88, art. 227"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    sinais: [menor, guarda, ato infracional, adoção, conselho tutelar, medida socioeducativa, proteção integral]
+
+  - id: idoso_pcd
+    nome: Direito do Idoso e da Pessoa com Deficiência
+    divisao: difuso_social
+    escopo: Tutela de grupos vulneráveis específicos.
+    diplomas:
+      - "Estatuto do Idoso — Lei 10.741/2003"
+      - "Estatuto da Pessoa com Deficiência — Lei 13.146/2015"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    sinais: [idoso, pessoa com deficiência, acessibilidade, tomada de decisão apoiada, prioridade]
+
+  - id: agrario
+    nome: Direito Agrário
+    divisao: difuso_social
+    escopo: Política agrária, reforma agrária, função social da terra.
+    diplomas:
+      - "Estatuto da Terra — Lei 4.504/1964"
+      - "Lei 8.629/1993 (reforma agrária)"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    orgaos:
+      incra: { url: https://www.gov.br/incra/ }
+    sinais: [reforma agrária, função social da terra, imóvel rural, desapropriação agrária, usucapião rural]
+
+  # ---------- RAMOS ESPECIALIZADOS / EMERGENTES (cauda longa) ----------
+  - id: digital_dados
+    nome: Direito Digital e Proteção de Dados
+    divisao: difuso_social
+    escopo: Internet, dados pessoais, privacidade.
+    diplomas:
+      - "LGPD — Lei 13.709/2018"
+      - "Marco Civil da Internet — Lei 12.965/2014"
+    fontes: [planalto, lexml]
+    tribunais: [stj, stf]
+    orgaos:
+      anpd: { url: https://www.gov.br/anpd/ }
+    sinais: [dados pessoais, tratamento, consentimento, vazamento, privacidade, controlador, operador, encarregado]
+
+  - id: concorrencial
+    nome: Direito Concorrencial (Antitruste)
+    divisao: difuso_social
+    escopo: Defesa da concorrência, atos de concentração, condutas.
+    diplomas:
+      - "Lei 12.529/2011 (SBDC / CADE)"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    orgaos:
+      cade: { url: https://www.gov.br/cade/ }
+    sinais: [concorrência, ato de concentração, cartel, posição dominante, abuso, conduta anticompetitiva]
+
+  - id: regulatorio_energia
+    nome: Direito Regulatório e Energético
+    divisao: publico
+    escopo: Petróleo, gás natural, energia elétrica e regulação setorial por agências.
+    diplomas:
+      - "Lei 9.478/1997 (Lei do Petróleo — cria ANP e CNPE)"
+      - "Lei 11.909/2009 (Lei do Gás)"
+      - "Lei 14.134/2021 (Novo Marco Legal do Gás Natural)"
+      - "Lei 9.847/1999 (fiscalização do abastecimento)"
+      - "Lei 9.427/1996 (ANEEL)"
+      - "Resoluções ANP / ANEEL / agências estaduais"
+    notas: >
+      ATENÇÃO competência: a distribuição de gás canalizado é serviço dos
+      ESTADOS (CF art. 25, §2º), regulada por agências estaduais (ex.: ARSESP).
+      Relevante para distribuidoras de gás (contexto Mitsui Gás).
+    fontes: [planalto, lexml]
+    tribunais: [stj, stf]
+    orgaos:
+      anp: { url: https://www.gov.br/anp/ }
+      aneel: { url: https://www.gov.br/aneel/ }
+      mme: { url: https://www.gov.br/mme/ }
+    sinais: [gás natural, gás canalizado, distribuição de gás, petróleo, ANP, regulação setorial, tarifa, concessão de energia, agência reguladora]
+
+  - id: imobiliario_registral
+    nome: Direito Imobiliário e Registral
+    divisao: privado
+    escopo: Propriedade imóvel, registros públicos, incorporação, condomínio.
+    diplomas:
+      - "Lei 6.015/1973 (Registros Públicos)"
+      - "Lei 6.766/1979 (parcelamento do solo urbano)"
+      - "Lei 4.591/1964 (condomínio e incorporações)"
+      - "Código Civil (direitos reais)"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    sinais: [registro de imóveis, matrícula, usucapião, incorporação imobiliária, condomínio, averbação, escritura]
+
+  - id: urbanistico
+    nome: Direito Urbanístico
+    divisao: publico
+    escopo: Política urbana, uso e ocupação do solo.
+    diplomas:
+      - "Estatuto da Cidade — Lei 10.257/2001"
+      - "Planos diretores municipais (legislação local)"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    sinais: [plano diretor, zoneamento, IPTU progressivo, função social da propriedade urbana, uso do solo]
+
+  - id: bancario_financeiro_mercado
+    nome: Direito Bancário e do Mercado Financeiro
+    divisao: privado
+    escopo: Sistema financeiro, instituições, mercado de capitais e seguros.
+    diplomas:
+      - "Lei 4.595/1964 (Sistema Financeiro Nacional)"
+      - "Lei 6.385/1976 (CVM / valores mobiliários)"
+      - "Decreto-Lei 73/1966 (seguros)"
+      - "Resoluções CMN / Banco Central"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    orgaos:
+      bacen: { url: https://www.bcb.gov.br/ }
+      cvm: { url: https://www.gov.br/cvm/ }
+      susep: { url: https://www.gov.br/susep/ }
+    sinais: [instituição financeira, contrato bancário, juros, valor mobiliário, seguro, CMN, Banco Central]
+
+  - id: saude_medico
+    nome: Direito Médico e da Saúde
+    divisao: difuso_social
+    escopo: SUS, responsabilidade médica, regulação sanitária.
+    diplomas:
+      - "Lei 8.080/1990 (SUS)"
+      - "Resoluções CFM / ANVISA"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    orgaos:
+      anvisa: { url: https://www.gov.br/anvisa/ }
+    sinais: [SUS, responsabilidade médica, erro médico, judicialização da saúde, vigilância sanitária]
+
+  - id: maritimo_aeronautico
+    nome: Direito Marítimo e Aeronáutico
+    divisao: privado
+    escopo: Transporte marítimo e aéreo, responsabilidade do transportador.
+    diplomas:
+      - "Código Brasileiro de Aeronáutica — Lei 7.565/1986"
+      - "Legislação marítima e convenções aplicáveis"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    sinais: [transporte aéreo, transporte marítimo, frete, avaria, responsabilidade do transportador]
+
+  - id: desportivo
+    nome: Direito Desportivo
+    divisao: privado
+    escopo: Organização do esporte, contratos desportivos, justiça desportiva.
+    diplomas:
+      - "Lei Pelé — 9.615/1998"
+      - "Lei Geral do Esporte — 14.597/2023"
+    fontes: [planalto, lexml]
+    tribunais: [stj]
+    sinais: [atleta, clube, contrato desportivo, justiça desportiva, transferência, federação]
